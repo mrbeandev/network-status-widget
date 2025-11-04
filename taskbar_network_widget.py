@@ -12,10 +12,11 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog
 import threading
 import time
-import requests
 import json
 import os
 import sys
+import subprocess
+import platform
 from PIL import Image, ImageDraw
 import pystray
 from pystray import MenuItem as item
@@ -33,7 +34,7 @@ class NetworkTaskbarWidget:
         """Load settings from config file"""
         self.settings_file = "network_widget_settings.json"
         default_settings = {
-            "ping_url": "https://mrbean.dev/health",
+            "ping_host": "8.8.8.8",  # Google DNS
             "ping_interval": 3,  # seconds
             "timeout": 3,
             "signal_bars": 6,
@@ -109,42 +110,79 @@ class NetworkTaskbarWidget:
         return image
 
     def check_network_status(self):
-        """Check network status by pinging the configured URL"""
+        """Check network status by pinging Google DNS (8.8.8.8)"""
+        import subprocess
+        import platform
+        
         try:
+            # Use ping command based on OS
+            if platform.system().lower() == "windows":
+                # Windows ping command
+                cmd = ["ping", "-n", "1", "-w", str(self.settings["timeout"] * 1000), self.settings["ping_host"]]
+                # Hide console window on Windows
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+                creation_flags = subprocess.CREATE_NO_WINDOW
+            else:
+                # Unix-like systems
+                cmd = ["ping", "-c", "1", "-W", str(self.settings["timeout"]), self.settings["ping_host"]]
+                startupinfo = None
+                creation_flags = 0
+            
             start_time = time.time()
-            response = requests.get(
-                self.settings["ping_url"], timeout=self.settings["timeout"]
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=self.settings["timeout"] + 1,
+                startupinfo=startupinfo,
+                creationflags=creation_flags
             )
             end_time = time.time()
-
-            if response.status_code == 200:
-                response_time = (end_time - start_time) * 1000  # Convert to ms
+            
+            if result.returncode == 0:
+                # Parse ping time from output
+                output = result.stdout.lower()
+                response_time = (end_time - start_time) * 1000  # Default fallback
+                
+                # Try to extract actual ping time from output
+                if "time=" in output:
+                    try:
+                        time_part = output.split("time=")[1].split()[0]
+                        if "ms" in time_part:
+                            response_time = float(time_part.replace("ms", ""))
+                        else:
+                            response_time = float(time_part)
+                    except (IndexError, ValueError):
+                        pass  # Use fallback time
+                
                 self.last_response_time = response_time
 
                 # Determine signal strength and status based on response time
-                if response_time < 400:
+                if response_time < 50:
                     return 6, "good"  # All bars, green
-                elif response_time < 600:
+                elif response_time < 100:
                     return 5, "good"  # 5 bars, green
-                elif response_time < 800:
+                elif response_time < 200:
                     return 4, "good"  # 4 bars, green
-                elif response_time < 1000:
+                elif response_time < 500:
                     return 3, "slow"  # 3 bars, orange
-                elif response_time < 3000:
+                elif response_time < 1000:
                     return 2, "slow"  # 2 bars, orange
-                elif response_time < 6000:
+                elif response_time < 2000:
                     return 1, "slow"  # 1 bar, orange
                 else:
                     return 1, "no_connection"  # 1 bar, red
             else:
                 return 0, "no_connection"
 
-        except requests.RequestException as e:
-            print(f"Network check failed: {e}")
+        except subprocess.TimeoutExpired:
+            print("Ping timeout")
             return 0, "no_connection"
         except Exception as e:
-            print(f"Unexpected error: {e}")
-            return 0, "unknown"
+            print(f"Network check failed: {e}")
+            return 0, "no_connection"
 
     def update_tray_icon(self):
         """Update the system tray icon with current network status"""
@@ -162,7 +200,7 @@ class NetworkTaskbarWidget:
 
         tooltip = f"Network Status: {status_text[self.current_status]}"
         if self.last_response_time > 0:
-            tooltip += f"\nResponse Time: {self.last_response_time:.0f}ms"
+            tooltip += f"\nPing Time: {self.last_response_time:.0f}ms"
         tooltip += (
             f"\nBars: {self.current_signal_strength}/{self.settings['signal_bars']}"
         )
@@ -195,7 +233,6 @@ class NetworkTaskbarWidget:
             item(
                 "Settings",
                 pystray.Menu(
-                    item("Change Ping URL...", self.change_ping_url),
                     item("Set Timeout...", self.set_timeout),
                     item("Test Connection", self.test_connection),
                 ),
@@ -224,8 +261,8 @@ class NetworkTaskbarWidget:
             message = f"Network Status: {status_text[self.current_status]}\n"
             message += f"Signal Bars: {self.current_signal_strength}/{self.settings['signal_bars']}\n"
             if self.last_response_time > 0:
-                message += f"Response Time: {self.last_response_time:.0f}ms\n"
-            message += f"Ping URL: {self.settings['ping_url']}\n"
+                message += f"Ping Time: {self.last_response_time:.0f}ms\n"
+            message += f"Ping Host: {self.settings['ping_host']} (Google DNS)\n"
             message += f"Check Interval: {self.settings['ping_interval']} seconds"
 
             # Create a proper dialog window
@@ -320,65 +357,7 @@ class NetworkTaskbarWidget:
 
         threading.Thread(target=show_dialog, daemon=True).start()
 
-    def change_ping_url(self, icon=None, item=None):
-        """Change the ping URL"""
 
-        def show_dialog():
-            root = tk.Tk()
-            root.title("Change Ping URL")
-            root.geometry("500x150")
-            root.resizable(False, False)
-
-            # Center the window
-            root.update_idletasks()
-            x = (root.winfo_screenwidth() // 2) - (500 // 2)
-            y = (root.winfo_screenheight() // 2) - (150 // 2)
-            root.geometry(f"500x150+{x}+{y}")
-
-            # Add label
-            label = tk.Label(root, text="Enter new ping URL:")
-            label.pack(pady=10)
-
-            # Add entry
-            entry_var = tk.StringVar(value=self.settings["ping_url"])
-            entry = tk.Entry(root, textvariable=entry_var, width=60)
-            entry.pack(pady=5, padx=10)
-            entry.focus()
-            entry.select_range(0, tk.END)
-
-            # Add buttons
-            button_frame = tk.Frame(root)
-            button_frame.pack(pady=10)
-
-            def save_url():
-                new_url = entry_var.get().strip()
-                if new_url:
-                    if new_url.startswith(("http://", "https://")):
-                        self.settings["ping_url"] = new_url
-                        self.save_settings()
-                        root.destroy()
-                    else:
-                        tk.messagebox.showerror(
-                            "Error", "URL must start with http:// or https://"
-                        )
-                else:
-                    tk.messagebox.showerror("Error", "Please enter a valid URL")
-
-            ok_btn = tk.Button(button_frame, text="OK", command=save_url, width=8)
-            ok_btn.pack(side=tk.LEFT, padx=5)
-
-            cancel_btn = tk.Button(
-                button_frame, text="Cancel", command=root.destroy, width=8
-            )
-            cancel_btn.pack(side=tk.LEFT, padx=5)
-
-            # Bind Enter key to save
-            root.bind("<Return>", lambda e: save_url())
-
-            root.focus_force()
-            root.mainloop()
-
-        threading.Thread(target=show_dialog, daemon=True).start()
 
     def set_timeout(self, icon=None, item=None):
         """Set request timeout"""
@@ -489,9 +468,9 @@ class NetworkTaskbarWidget:
 
                     message = f"Test Result: {status_text[status]}\n"
                     if self.last_response_time > 0:
-                        message += f"Response Time: {self.last_response_time:.0f}ms\n"
+                        message += f"Ping Time: {self.last_response_time:.0f}ms\n"
                     message += f"Signal Bars: {signal_strength}/{self.settings['signal_bars']}\n"
-                    message += f"URL Tested: {self.settings['ping_url']}"
+                    message += f"Host Tested: {self.settings['ping_host']} (Google DNS)"
 
                     status_label.config(text="Test Complete!")
                     progress_label.config(text="✓", fg="green")
@@ -527,7 +506,7 @@ class NetworkTaskbarWidget:
             y = (root.winfo_screenheight() // 2) - (300 // 2)
             root.geometry(f"450x300+{x}+{y}")
 
-            about_text = """Network Status Widget v1.0
+            about_text = """Network Status Widget v1.1
 
 A Windows taskbar widget that shows network connectivity status using signal bars.
 
@@ -539,12 +518,12 @@ Features:
 • 6-bar signal strength indicator
 • Color-coded status (Green/Orange/Red)
 • Customizable ping intervals
-• Configurable ping URL
+• Google DNS connectivity check
 • System tray integration
 
-Default URL: https://mrbean.dev/health
+Ping Host: 8.8.8.8 (Google DNS)
 
-This widget monitors your internet connection by sending requests to the configured URL and displays the connection quality using colored signal bars in your system tray.
+This widget monitors your internet connection by pinging Google's DNS server (8.8.8.8) and displays the connection quality using colored signal bars in your system tray.
 
 Made with ❤️ for Windows users"""
 
@@ -623,14 +602,13 @@ def main():
                     "install",
                     "pystray",
                     "Pillow",
-                    "requests",
                 ]
             )
             print("Packages installed successfully. Please restart the application.")
             return
         except Exception as install_error:
             print(f"Failed to install packages: {install_error}")
-            print("Please manually install: pip install pystray Pillow requests")
+            print("Please manually install: pip install pystray Pillow")
             return
 
     # Create and run the widget

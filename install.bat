@@ -23,13 +23,13 @@ if errorlevel 1 (
 
 :: Get Python version for display
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-echo ✓ Python !PYTHON_VERSION! found
+echo [OK] Python !PYTHON_VERSION! found
 
 :: Create virtual environment
 echo.
 echo [2/4] Creating virtual environment...
 if exist ".venv" (
-    echo ✓ Virtual environment already exists
+    echo [OK] Virtual environment already exists
 ) else (
     python -m venv .venv
     if errorlevel 1 (
@@ -38,7 +38,7 @@ if exist ".venv" (
         pause
         exit /b 1
     )
-    echo ✓ Virtual environment created successfully
+    echo [OK] Virtual environment created successfully
 )
 
 :: Activate virtual environment
@@ -50,7 +50,7 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-echo ✓ Virtual environment activated
+echo [OK] Virtual environment activated
 
 :: Install requirements
 echo.
@@ -63,11 +63,11 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-echo ✓ All packages installed successfully
+echo [OK] All packages installed successfully
 
 echo.
 echo ========================================
-echo Installation Complete! 🎉
+echo Installation Complete!
 echo ========================================
 echo.
 echo Next steps:

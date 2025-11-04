@@ -16,16 +16,16 @@ def install_pyinstaller():
     """Install PyInstaller if not already installed"""
     try:
         import PyInstaller
-        print("✓ PyInstaller is already installed")
+        print("[OK] PyInstaller is already installed")
         return True
     except ImportError:
         print("Installing PyInstaller...")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-            print("✓ PyInstaller installed successfully")
+            print("[OK] PyInstaller installed successfully")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"✗ Failed to install PyInstaller: {e}")
+            print(f"[ERROR] Failed to install PyInstaller: {e}")
             return False
 
 def create_spec_file():
@@ -85,7 +85,7 @@ exe = EXE(
     
     with open('network_widget.spec', 'w') as f:
         f.write(spec_content)
-    print("✓ Created custom spec file")
+    print("[OK] Created custom spec file")
 
 def build_executable():
     """Build the executable using PyInstaller"""
@@ -103,16 +103,16 @@ def build_executable():
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
-            print("✓ Executable built successfully!")
+            print("[OK] Executable built successfully!")
             return True
         else:
-            print(f"✗ Build failed:")
+            print(f"[ERROR] Build failed:")
             print(result.stdout)
             print(result.stderr)
             return False
             
     except Exception as e:
-        print(f"✗ Error during build: {e}")
+        print(f"[ERROR] Error during build: {e}")
         return False
 
 def cleanup_build_files():
@@ -123,12 +123,12 @@ def cleanup_build_files():
     for dir_name in ['build', '__pycache__']:
         if os.path.exists(dir_name):
             shutil.rmtree(dir_name)
-            print(f"✓ Removed {dir_name} directory")
+            print(f"[OK] Removed {dir_name} directory")
     
     # Remove spec file
     if os.path.exists('network_widget.spec'):
         os.remove('network_widget.spec')
-        print("✓ Removed spec file")
+        print("[OK] Removed spec file")
 
 def create_startup_script():
     """Create a script to add the exe to Windows startup"""
@@ -145,7 +145,7 @@ set "exe_path=%~dp0dist\\NetworkStatusWidget.exe"
 set "startup_folder=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
 
 if not exist "!exe_path!" (
-    echo ❌ ERROR: NetworkStatusWidget.exe not found!
+    echo [ERROR] NetworkStatusWidget.exe not found!
     echo.
     echo Please build the executable first:
     echo 1. Run build_exe.py, or
@@ -165,7 +165,7 @@ echo Creating startup shortcut...
 powershell -Command "try { $WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('!startup_folder!\\Network Status Widget.lnk'); $Shortcut.TargetPath = '!exe_path!'; $Shortcut.WorkingDirectory = '%~dp0dist'; $Shortcut.Description = 'Network Status Widget by mrbeandev - Shows network connectivity in system tray'; $Shortcut.Save(); exit 0 } catch { exit 1 }"
 
 if !errorlevel! equ 0 (
-    echo ✅ Successfully added to Windows startup!
+    echo [OK] Successfully added to Windows startup!
     echo.
     echo The widget will now start automatically when Windows boots.
     echo You can find the shortcut at:
@@ -175,7 +175,7 @@ if !errorlevel! equ 0 (
     echo 1. Press Win+R, type: shell:startup
     echo 2. Delete "Network Status Widget.lnk"
 ) else (
-    echo ❌ Failed to create startup shortcut
+    echo [ERROR] Failed to create startup shortcut
     echo.
     echo Manual setup:
     echo 1. Press Win+R, type: shell:startup
@@ -192,7 +192,7 @@ pause
     
     with open('add_to_startup.bat', 'w') as f:
         f.write(startup_script)
-    print("✓ Created startup script: add_to_startup.bat")
+    print("[OK] Created startup script: add_to_startup.bat")
 
 def main():
     """Main build process"""
@@ -204,7 +204,7 @@ def main():
     try:
         # Check if main file exists
         if not os.path.exists('taskbar_network_widget.py'):
-            print("✗ taskbar_network_widget.py not found!")
+            print("[ERROR] taskbar_network_widget.py not found!")
             print("Make sure you're running this script from the project directory.")
             return False
         
@@ -218,13 +218,13 @@ def main():
             subprocess.check_call([
                 sys.executable, "-m", "pip", "install", "-r", "requirements.txt", "--quiet"
             ])
-            print("✓ Requirements installed")
+            print("[OK] Requirements installed")
         except subprocess.CalledProcessError as e:
-            print(f"✗ Failed to install requirements: {e}")
+            print(f"[ERROR] Failed to install requirements: {e}")
             print("Make sure you have an active internet connection.")
             return False
         except FileNotFoundError:
-            print("✗ requirements.txt not found!")
+            print("[ERROR] requirements.txt not found!")
             return False
         
         # Create spec file
@@ -236,7 +236,7 @@ def main():
         
         # Verify executable was created
         if not os.path.exists('dist/NetworkStatusWidget.exe'):
-            print("✗ Executable was not created successfully!")
+            print("[ERROR] Executable was not created successfully!")
             return False
         
         # Create startup script
@@ -246,11 +246,11 @@ def main():
         cleanup_build_files()
         
         print()
-        print("🎉 Build completed successfully!")
+        print("Build completed successfully!")
         print()
         print("Files created:")
-        print("  📁 dist/NetworkStatusWidget.exe - The main executable")
-        print("  📄 add_to_startup.bat - Script to add to Windows startup")
+        print("  dist/NetworkStatusWidget.exe - The main executable")
+        print("  add_to_startup.bat - Script to add to Windows startup")
         print()
         print("Next steps:")
         print("1. Test the executable: dist/NetworkStatusWidget.exe")
@@ -263,10 +263,10 @@ def main():
         return True
         
     except KeyboardInterrupt:
-        print("\n✗ Build cancelled by user")
+        print("\n[ERROR] Build cancelled by user")
         return False
     except Exception as e:
-        print(f"\n✗ Unexpected error during build: {e}")
+        print(f"\n[ERROR] Unexpected error during build: {e}")
         print("For help, visit: mrbean.dev")
         return False
 

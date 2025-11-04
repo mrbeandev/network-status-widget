@@ -15,10 +15,10 @@ if exist ".venv\Scripts\activate.bat" (
     echo Activating virtual environment...
     call .venv\Scripts\activate.bat
     if errorlevel 1 (
-        echo ❌ Failed to activate virtual environment
+        echo [ERROR] Failed to activate virtual environment
         echo Continuing with global Python...
     ) else (
-        echo ✅ Virtual environment activated
+        echo [OK] Virtual environment activated
     )
 )
 
@@ -28,24 +28,24 @@ python build_exe.py
 
 if errorlevel 1 (
     echo.
-    echo ❌ Build failed!
+    echo [ERROR] Build failed!
     echo Check the error messages above.
     echo.
     echo For help:
-    echo • Run install.bat first
-    echo • Visit mrbean.dev
-    echo • Check README.md
+    echo - Run install.bat first
+    echo - Visit mrbean.dev
+    echo - Check README.md
     echo.
 ) else (
     echo.
-    echo ✅ Build completed successfully!
+    echo [OK] Build completed successfully!
     echo.
     echo Files created:
     if exist "dist\NetworkStatusWidget.exe" (
-        echo ✅ dist\NetworkStatusWidget.exe
+        echo [OK] dist\NetworkStatusWidget.exe
     )
     if exist "add_to_startup.bat" (
-        echo ✅ add_to_startup.bat
+        echo [OK] add_to_startup.bat
     )
     echo.
 )

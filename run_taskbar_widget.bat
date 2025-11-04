@@ -12,10 +12,10 @@ if exist ".venv\Scripts\activate.bat" (
     echo Activating virtual environment...
     call .venv\Scripts\activate.bat
     if errorlevel 1 (
-        echo ❌ Failed to activate virtual environment
+        echo [ERROR] Failed to activate virtual environment
         goto :run_global
     )
-    echo ✅ Virtual environment activated
+    echo [OK] Virtual environment activated
 ) else (
     echo No virtual environment found, using global Python...
 )
@@ -29,7 +29,7 @@ echo.
 python taskbar_network_widget.py
 if errorlevel 1 (
     echo.
-    echo ❌ Error starting widget!
+    echo [ERROR] Error starting widget!
     echo.
     echo Possible solutions:
     echo 1. Run install.bat to install dependencies
